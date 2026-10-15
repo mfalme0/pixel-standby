@@ -21,6 +21,8 @@ import com.pixelstandby.dream.PixelOffset
 import com.pixelstandby.media.MediaNotificationListener
 import com.pixelstandby.media.MediaSessionDiscovery
 import com.pixelstandby.media.NotificationAccess
+import com.pixelstandby.ntfy.NtfyBannerManager
+import com.pixelstandby.ntfy.NtfySubscriberService
 import com.pixelstandby.ui.MediaCard
 import com.pixelstandby.ui.StandbyDream
 import com.pixelstandby.ui.StandbyTheme
@@ -91,6 +93,9 @@ class StandbyDreamService : DreamService() {
             val backendUrl by settings.backendUrl.collectAsState(initial = "")
             val bearerToken by settings.bearerToken.collectAsState(initial = "")
             val mediaEnabled by settings.mediaEnabled.collectAsState(initial = true)
+            val ntfyServer by settings.ntfyServer.collectAsState(initial = "https://ntfy.sh")
+            val ntfyTopic by settings.ntfyTopic.collectAsState(initial = "")
+            val ntfyToken by settings.ntfyToken.collectAsState(initial = "")
 
             val quotesClient = remember(backendUrl, bearerToken) {
                 QuotesClient(baseUrl = backendUrl, bearerToken = bearerToken)
@@ -130,12 +135,23 @@ class StandbyDreamService : DreamService() {
             val media by discovery.sessions.collectAsState(initial = emptyList())
             val activeMedia by discovery.active.collectAsState(initial = null)
 
+            val banners by NtfyBannerManager.banners.collectAsState(initial = emptyList())
+
             // Start the quote refresh loop tied to the dream's lifecycle.
             LaunchedEffect(Unit) {
                 quotesRepository.startRefresh()
                 // Only start media discovery if notification access is granted.
                 if (mediaEnabled && notificationAccess) {
                     discovery.start()
+                }
+                // Start the ntfy subscriber if a topic is configured.
+                if (ntfyTopic.isNotEmpty()) {
+                    NtfySubscriberService.start(
+                        this@StandbyDreamService,
+                        ntfyTopic,
+                        ntfyServer,
+                        ntfyToken.takeIf { it.isNotEmpty() },
+                    )
                 }
             }
 
@@ -152,6 +168,7 @@ class StandbyDreamService : DreamService() {
                     burnOffset = burnOffset,
                     quotes = if (dashboardOn) quotes else emptyList(),
                     media = if (mediaEnabled && notificationAccess) activeMedia else null,
+                    banners = banners,
                     onPlayPause = { activeMedia?.transportControls?.play() },
                     onNext = { activeMedia?.transportControls?.skipToNext() },
                     onPrevious = { activeMedia?.transportControls?.skipToPrevious() },

@@ -18,6 +18,9 @@ private val Context.settingsStore: DataStore<Preferences> by preferencesDataStor
 private const val BackendUrlKey = "backend_url"
 private const val BearerTokenKey = "bearer_token"
 private const val MediaEnabledKey = "media_enabled"
+private const val NtfyServerKey = "ntfy_server"
+private const val NtfyTopicKey = "ntfy_topic"
+private const val NtfyTokenKey = "ntfy_token"
 
 /**
  * User settings. Defaults are the "calm bedside clock" defaults: 12 hour, no seconds.
@@ -50,7 +53,22 @@ class SettingsRepository(context: Context) {
     val mediaEnabled: Flow<Boolean> =
         preferences.map { it[booleanPreferencesKey(MediaEnabledKey)] ?: true }
 
+    val ntfyServer: Flow<String> =
+        preferences.map { it[stringPreferencesKey(NtfyServerKey)] ?: "https://ntfy.sh" }
+
+    val ntfyTopic: Flow<String> =
+        preferences.map { it[stringPreferencesKey(NtfyTopicKey)] ?: "" }
+
+    val ntfyToken: Flow<String> =
+        preferences.map { it[stringPreferencesKey(NtfyTokenKey)] ?: "" }
+
     suspend fun setMediaEnabled(value: Boolean) = store.edit { it[booleanPreferencesKey(MediaEnabledKey)] = value }
+
+    suspend fun setNtfyServer(value: String) = store.edit { it[stringPreferencesKey(NtfyServerKey)] = value }
+
+    suspend fun setNtfyTopic(value: String) = store.edit { it[stringPreferencesKey(NtfyTopicKey)] = value }
+
+    suspend fun setNtfyToken(value: String) = store.edit { it[stringPreferencesKey(NtfyTokenKey)] = value }
 
     suspend fun setClock24Hour(value: Boolean) = store.edit { it[booleanPreferencesKey("clock_24_hour")] = value }
 

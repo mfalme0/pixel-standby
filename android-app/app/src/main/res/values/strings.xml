@@ -8,4 +8,5 @@
     <string name="clock_content_description">Current time %1$s</string>
 <string name="media_notification_listener_label">Pixel Standby Media Listener</string>
 <string name="media_card_content_description">Now playing media card</string>
+<string name="ntfy_service_label">Pixel Standby NTFY Subscriber</string>
 </resources>

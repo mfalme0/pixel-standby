@@ -1,6 +1,8 @@
 package com.pixelstandby.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -8,19 +10,30 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.pixelstandby.R
 import com.pixelstandby.data.Quote
 import com.pixelstandby.dream.DimLevel
 import com.pixelstandby.dream.PixelOffset
 import com.pixelstandby.media.MediaSessionDiscovery.MediaSessionInfo
+import com.pixelstandby.ntfy.NtfyBanner
+
+private val BannerBackground = Color(0xFF1A1A1A)
+private val BannerBorder = Color(0xFF333333)
 
 /**
  * The whole dream, in one place.
@@ -40,6 +53,7 @@ fun StandbyDream(
     burnOffset: PixelOffset,
     quotes: List<Quote>,
     media: MediaSessionInfo?,
+    banners: List<NtfyBanner>,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
@@ -87,10 +101,47 @@ fun StandbyDream(
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
+                        // NTFY banners: show current (under 15s old) banners.
+                        val now = System.currentTimeMillis()
+                        banners.filter { it.isCurrent(now) }.forEach { banner ->
+                            NtfyBannerRow(banner = banner)
+                        }
                         dashboard()
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * A single ntfy banner row shown beneath the clock/prices/media.
+ */
+@Composable
+private fun NtfyBannerRow(banner: NtfyBanner) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 32.dp, vertical = 4.dp)
+            .background(BannerBackground)
+            .border(1.dp, BannerBorder, RoundedCornerShape(8.dp))
+            .clickable { /* tap could dismiss or expand */ },
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+        ) {
+            Text(
+                text = banner.title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color(banner.priorityColor),
+                maxLines = 1,
+            )
+            Text(
+                text = banner.message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 2,
+            )
         }
     }
 }
@@ -108,6 +159,7 @@ private fun StandbyDreamPreview() {
             burnOffset = PixelOffset.ZERO,
             quotes = emptyList(),
             media = null,
+            banners = emptyList(),
             onPlayPause = {},
             onNext = {},
             onPrevious = {},
@@ -129,6 +181,7 @@ private fun StandbyDreamUnpluggedPreview() {
             burnOffset = PixelOffset.ZERO,
             quotes = emptyList(),
             media = null,
+            banners = emptyList(),
             onPlayPause = {},
             onNext = {},
             onPrevious = {},
@@ -139,7 +192,7 @@ private fun StandbyDreamUnpluggedPreview() {
 
 @Preview(widthDp = 1040, heightDp = 480)
 @Composable
-private fun StandbyDreamMediaPreview() {
+private fun StandbyDreamBannerPreview() {
     StandbyTheme {
         StandbyDream(
             charging = true,
@@ -150,6 +203,22 @@ private fun StandbyDreamMediaPreview() {
             burnOffset = PixelOffset.ZERO,
             quotes = emptyList(),
             media = null,
+            banners = listOf(
+                NtfyBanner(
+                    id = System.currentTimeMillis(),
+                    title = "opencode",
+                    message = "finished in 4m12s, exit 0",
+                    priority = "default",
+                    time = System.currentTimeMillis(),
+                ),
+                NtfyBanner(
+                    id = System.currentTimeMillis() + 1,
+                    title = "deploy",
+                    message = "failed, exit 1",
+                    priority = "high",
+                    time = System.currentTimeMillis(),
+                ),
+            ),
             onPlayPause = {},
             onNext = {},
             onPrevious = {},
