@@ -3,6 +3,7 @@ package com.pixelstandby
 import android.service.dreams.DreamService
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -17,6 +18,10 @@ import com.pixelstandby.dream.ClockTicker
 import com.pixelstandby.dream.DimLevel
 import com.pixelstandby.dream.DreamEnvironment
 import com.pixelstandby.dream.PixelOffset
+import com.pixelstandby.media.MediaNotificationListener
+import com.pixelstandby.media.MediaSessionDiscovery
+import com.pixelstandby.media.NotificationAccess
+import com.pixelstandby.ui.MediaCard
 import com.pixelstandby.ui.StandbyDream
 import com.pixelstandby.ui.StandbyTheme
 import java.time.ZoneId
@@ -33,7 +38,6 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import androidx.compose.runtime.LaunchedEffect
 
 /**
  * The bedside dashboard.
@@ -42,8 +46,8 @@ import androidx.compose.runtime.LaunchedEffect
  * are started when the dream is drawn and cancelled the moment the window goes away. There
  * is no service-lifetime scope to leak, and nothing runs while the dream is off screen.
  *
- * The quotes refresh loop is a coroutine launched in the dream's own scope; it is cancelled
- * when the window detaches.
+ * The quotes refresh loop and the media session discovery loop are coroutines launched in
+ * the dream's own scope; they are cancelled when the window detaches.
  */
 class StandbyDreamService : DreamService() {
 
@@ -86,6 +90,7 @@ class StandbyDreamService : DreamService() {
             val dashboardOn by settings.dashboardEnabled.collectAsState(initial = true)
             val backendUrl by settings.backendUrl.collectAsState(initial = "")
             val bearerToken by settings.bearerToken.collectAsState(initial = "")
+            val mediaEnabled by settings.mediaEnabled.collectAsState(initial = true)
 
             val quotesClient = remember(backendUrl, bearerToken) {
                 QuotesClient(baseUrl = backendUrl, bearerToken = bearerToken)
@@ -116,9 +121,22 @@ class StandbyDreamService : DreamService() {
 
             val quotes by quotesRepository.quotes.collectAsState(initial = emptyList())
 
+            // Media session discovery
+            val discovery = remember {
+                MediaSessionDiscovery(this@StandbyDreamService)
+            }
+            val notificationAccess = NotificationAccess.isEnabled(this@StandbyDreamService)
+
+            val media by discovery.sessions.collectAsState(initial = emptyList())
+            val activeMedia by discovery.active.collectAsState(initial = null)
+
             // Start the quote refresh loop tied to the dream's lifecycle.
             LaunchedEffect(Unit) {
                 quotesRepository.startRefresh()
+                // Only start media discovery if notification access is granted.
+                if (mediaEnabled && notificationAccess) {
+                    discovery.start()
+                }
             }
 
             StandbyTheme {
@@ -133,6 +151,10 @@ class StandbyDreamService : DreamService() {
                     dimLevel = dimLevel,
                     burnOffset = burnOffset,
                     quotes = if (dashboardOn) quotes else emptyList(),
+                    media = if (mediaEnabled && notificationAccess) activeMedia else null,
+                    onPlayPause = { activeMedia?.transportControls?.play() },
+                    onNext = { activeMedia?.transportControls?.skipToNext() },
+                    onPrevious = { activeMedia?.transportControls?.skipToPrevious() },
                     onInteraction = env::noteInteraction,
                 )
             }

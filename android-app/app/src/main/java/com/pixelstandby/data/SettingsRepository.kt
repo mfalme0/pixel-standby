@@ -17,6 +17,7 @@ private val Context.settingsStore: DataStore<Preferences> by preferencesDataStor
 
 private const val BackendUrlKey = "backend_url"
 private const val BearerTokenKey = "bearer_token"
+private const val MediaEnabledKey = "media_enabled"
 
 /**
  * User settings. Defaults are the "calm bedside clock" defaults: 12 hour, no seconds.
@@ -45,6 +46,11 @@ class SettingsRepository(context: Context) {
 
     val bearerToken: Flow<String> =
         preferences.map { it[stringPreferencesKey(BearerTokenKey)] ?: "" }
+
+    val mediaEnabled: Flow<Boolean> =
+        preferences.map { it[booleanPreferencesKey(MediaEnabledKey)] ?: true }
+
+    suspend fun setMediaEnabled(value: Boolean) = store.edit { it[booleanPreferencesKey(MediaEnabledKey)] = value }
 
     suspend fun setClock24Hour(value: Boolean) = store.edit { it[booleanPreferencesKey("clock_24_hour")] = value }
 

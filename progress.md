@@ -82,8 +82,35 @@ Backend README at `backend/README.md`; API contract at `docs/api-contract.md`.
 
 ### Phase 3 — Media mode
 
-- Status: not started
-- Checkpoint 3: not reached
+- Status: **built, unit tested (33 tests), debug APK builds**
+- Checkpoint 3: **not reached** — needs device testing with YouTube and Spotify
+- Manifest: `MediaNotificationListener` declared with `BIND_NOTIFICATION_LISTENER_SERVICE`, plus `NOTIFICATION_LISTENER_SERVICE` permission
+
+Delivered:
+
+| File | Purpose |
+| --- | --- |
+| `media/MediaNotificationListener.kt` | `NotificationListenerService` — holds permission only, never reads content |
+| `media/MediaSessionDiscovery.kt` | Finds active sessions via `MediaSessionManager.getActiveSessions` (API 28+), prefers PLAYING, falls back to most recent; callback-based listener |
+| `media/NotificationAccess.kt` | Checks if notification access is granted via `NotificationManagerCompat` |
+| `ui/MediaCard.kt` | Media card beside clock: title, artist, play/pause/next/previous glyph controls |
+| `StandbyDreamService.kt` | Wires media session discovery into dream lifecycle; cancelled on detach |
+| `StandbyScreen.kt` | Shows `MediaCard` beside clock when media is active |
+| `data/SettingsRepository.kt` | `mediaEnabled` setting (DataStore) |
+
+Key design decisions:
+- `MediaNotificationListener` is a no-op `NotificationListenerService` — it exists solely to hold the `BIND_NOTIFICATION_LISTENER_SERVICE` permission. No notification content is ever read.
+- Media session discovery uses `MediaSessionManager.getActiveSessions` (API 28+). On API < 28, returns empty.
+- Prefers PLAYING sessions; falls back to most recently active.
+- Uses callbacks (`MediaController.Callback`) for real-time updates + a 2s refresh loop as fallback.
+- Controls go through `MediaController.TransportControls` (play/pause, skipToNext, skipToPrevious).
+- Media card is hidden when nothing is active.
+
+Needs device testing:
+- YouTube media session visibility and control
+- Spotify media session visibility and control
+- Track change latency (should be < 1s via callbacks)
+- Notification access grant flow
 
 ### Phase 4 — CLI notification bridge
 

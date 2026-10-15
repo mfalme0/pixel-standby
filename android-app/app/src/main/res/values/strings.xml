@@ -6,4 +6,6 @@
     <string name="message_rotate_to_landscape">Rotate to landscape</string>
 
     <string name="clock_content_description">Current time %1$s</string>
+<string name="media_notification_listener_label">Pixel Standby Media Listener</string>
+<string name="media_card_content_description">Now playing media card</string>
 </resources>

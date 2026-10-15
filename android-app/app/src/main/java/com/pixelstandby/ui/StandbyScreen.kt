@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +20,7 @@ import com.pixelstandby.R
 import com.pixelstandby.data.Quote
 import com.pixelstandby.dream.DimLevel
 import com.pixelstandby.dream.PixelOffset
+import com.pixelstandby.media.MediaSessionDiscovery.MediaSessionInfo
 
 /**
  * The whole dream, in one place.
@@ -39,6 +39,10 @@ fun StandbyDream(
     dimLevel: DimLevel,
     burnOffset: PixelOffset,
     quotes: List<Quote>,
+    media: MediaSessionInfo?,
+    onPlayPause: () -> Unit,
+    onNext: () -> Unit,
+    onPrevious: () -> Unit,
     onInteraction: () -> Unit,
     modifier: Modifier = Modifier,
     dashboard: @Composable () -> Unit = {},
@@ -74,6 +78,15 @@ fun StandbyDream(
                         if (quotes.isNotEmpty()) {
                             PriceCard(quotes = quotes)
                         }
+                        if (media != null) {
+                            MediaCard(
+                                media = media,
+                                onPlayPause = onPlayPause,
+                                onNext = onNext,
+                                onPrevious = onPrevious,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                         dashboard()
                     }
                 }
@@ -94,6 +107,10 @@ private fun StandbyDreamPreview() {
             dimLevel = DimLevel.BRIGHT,
             burnOffset = PixelOffset.ZERO,
             quotes = emptyList(),
+            media = null,
+            onPlayPause = {},
+            onNext = {},
+            onPrevious = {},
             onInteraction = {},
         )
     }
@@ -111,6 +128,31 @@ private fun StandbyDreamUnpluggedPreview() {
             dimLevel = DimLevel.BRIGHT,
             burnOffset = PixelOffset.ZERO,
             quotes = emptyList(),
+            media = null,
+            onPlayPause = {},
+            onNext = {},
+            onPrevious = {},
+            onInteraction = {},
+        )
+    }
+}
+
+@Preview(widthDp = 1040, heightDp = 480)
+@Composable
+private fun StandbyDreamMediaPreview() {
+    StandbyTheme {
+        StandbyDream(
+            charging = true,
+            landscape = true,
+            clockText = "9:41 PM",
+            clockContentDescription = "Current time 9:41 PM",
+            dimLevel = DimLevel.BRIGHT,
+            burnOffset = PixelOffset.ZERO,
+            quotes = emptyList(),
+            media = null,
+            onPlayPause = {},
+            onNext = {},
+            onPrevious = {},
             onInteraction = {},
         )
     }
