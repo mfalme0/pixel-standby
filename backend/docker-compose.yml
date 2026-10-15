@@ -1,0 +1,28 @@
+services:
+  backend:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      - PIXEL_BEARER_TOKEN=${PIXEL_BEARER_TOKEN}
+      - UPSTREAM_BASE_URL=${UPSTREAM_BASE_URL:-https://query1.finance.yahoo.com}
+      - CACHE_TTL_SECONDS=${CACHE_TTL_SECONDS:-60}
+      - UPSTREAM_RATE_CAPACITY=${UPSTREAM_RATE_CAPACITY:-30}
+      - UPSTREAM_RATE_WINDOW_SECONDS=${UPSTREAM_RATE_WINDOW_SECONDS:-60}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    # Caddy (or another TLS terminator) sits in front of this container in production.
+    # The container itself speaks HTTP; Caddy handles HTTPS and forwards to port 8000.
+
+  # Optional local Caddy for HTTPS termination during development.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8443:8443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - backend
+    environment:
+      - PIXEL_BEARER_TOKEN

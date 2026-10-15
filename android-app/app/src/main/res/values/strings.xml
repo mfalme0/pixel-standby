@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Pixel Standby</string>
+    <string name="dream_label">Pixel Standby</string>
+
+    <string name="message_connect_to_power">Connect to power to activate</string>
+    <string name="message_rotate_to_landscape">Rotate to landscape</string>
+
+    <string name="clock_content_description">Current time %1$s</string>
+</resources>
