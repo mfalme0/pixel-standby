@@ -114,8 +114,39 @@ Needs device testing:
 
 ### Phase 4 — CLI notification bridge
 
-- Status: not started
-- Checkpoint 4: not reached
+- Status: **built, unit tested (CLI tested manually), debug APK builds**
+- Checkpoint 4: **not reached** — needs device testing: `notify-run -- sleep 5` → banner on phone within 5s
+
+Delivered:
+
+| File | Purpose |
+| --- | --- |
+| `cli-bridge/notify_run.py` | CLI wrapper: runs command, streams output, posts result to ntfy |
+| `ntfy/NtfySubscriberService.kt` | Foreground service, SSE stream to ntfy topic, exponential backoff |
+| `ntfy/NtfyBannerManager.kt` | (in NtfySubscriberService.kt) Banners 15s, history strip (last 20), Android notification per banner |
+| `ntfy/NtfyMessage.kt` | (in NtfySubscriberService.kt) Minimal JSON parser for ntfy events |
+| `ntfy/NtfyBanner.kt` | (in NtfySubscriberService.kt) Banner data class with priority colors |
+| `ntfy/PixelStandbyApp.kt` | (in NtfySubscriberService.kt) Application class for static context |
+| `ntfy/StubActivity.kt` | (in NtfySubscriberService.kt) Stub activity for notification pending intents |
+| `ui/StandbyScreen.kt` | Updated: shows NtfyBannerRow beneath clock/prices/media |
+| `data/SettingsRepository.kt` | ntfy_server, ntfy_topic, ntfy_token in DataStore |
+
+Key design:
+- `notify-run --title "opencode" -- <cmd>` runs cmd, streams output, posts "opencode finished in Xs, exit N"
+- Failures = high priority
+- ntfy SSE stream with `?json` for event parsing
+- Exponential backoff reconnect: 1s → 2s → 4s → ... → 60s cap
+- Banners shown for 15s, then move to history; last 20 kept in memory
+- Banner colors: low=grey, default=white, high=amber, urgent=red
+- Also posts standard Android notification (recorded when screen off)
+
+Needs device testing:
+- `notify-run -- sleep 5` → banner on phone within 5 seconds
+- Banner colors by priority
+- History strip (last 20)
+- Android notification with screen off
+
+Settings screen to enter ntfy topic/server/token still needs to be built (Phase 5).
 - ntfy decided: public topic with an unguessable name, no token
 
 ### Phase 5 — Hardening

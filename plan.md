@@ -127,7 +127,8 @@ CLI (`/cli-bridge/notify_run.py`):
 - Phase 1 (standby shell): built and unit tested locally; device verification pending.
 - Phase 2 (market data): backend built and unit tested (102 tests); Android-side built and unit tested (33 tests).
 - Phase 3 (media mode): built and unit tested (33 tests); device verification pending.
-- Phases 4–5: not started.
+- Phase 4 (CLI notification bridge): built and tested locally; device verification pending.
+- Phase 5: not started.
 
 ## Environment gaps, resolved
 
