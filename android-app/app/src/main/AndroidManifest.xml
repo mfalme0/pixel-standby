@@ -47,7 +47,7 @@
 
         <activity
             android:name=".settings.SettingsActivity"
-            android:exported="false"
+            android:exported="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <activity
