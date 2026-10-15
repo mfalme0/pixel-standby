@@ -4,124 +4,112 @@ A bedside dashboard for a Google Pixel 6 Pro. When the phone is charging and hel
 landscape, it shows a large clock, live market prices, media controls for whatever is
 playing, and notification banners pushed from command-line tools.
 
-| Path           | What it is                                                |
-| -------------- | --------------------------------------------------------- |
-| `/android-app` | Kotlin + Jetpack Compose `DreamService` (Min SDK 26)       |
-| `/backend`     | Python FastAPI market-data service behind Caddy/HTTPS      |
-| `/cli-bridge`  | `notify-run`, a notify-and-run wrapper for shell commands  |
-| `/docs`        | API contract and device setup notes                        |
+Built as three pieces:
+
+| Path           | What it is                                                    |
+| -------------- | ------------------------------------------------------------- |
+| `/android-app` | Kotlin + Jetpack Compose `DreamService` (Min SDK 26)            |
+| `/backend`     | Python FastAPI market-data service behind Caddy/HTTPS           |
+| `/cli-bridge`  | `notify-run`, a notify-and-run wrapper for shell commands      |
+| `/docs`        | API contract and setup notes                                   |
 
 ## Status
 
-Phase 1 (standby shell) built and unit tested. Waiting on device verification for
-Checkpoint 1. Phases 2–5 not started. See `progress.md`.
+All 5 phases built and unit tested. Waiting on device verification for all checkpoints.
+
+- Phase 1: Standby shell — clock, power/orientation gates, burn-in protection
+- Phase 2: Market data — backend + prices in dream
+- Phase 3: Media mode — playback controls for Spotify, YouTube, etc.
+- Phase 4: CLI notification bridge — ntfy banners from `notify-run`
+- Phase 5: Hardening — settings screen, connection indicator, dim level
 
 ---
 
-## Phase 1 — Standby shell
+## Quick start
 
-The clock, the power and orientation gates, and burn-in protection. No network yet.
+### 1. Install the APK
 
-### Build
+```powershell
+adb install -r android-app\app\build\outputs\apk\debug\app-debug.apk
+```
+
+### 2. Enable the screen saver on the Pixel
+
+1. **Settings → Display → Screen saver → Pixel Standby**
+2. **Settings → Display → Screen saver → Start screen saver → While charging**
+3. Plug the phone in and rotate to landscape.
+
+### 3. Open the settings screen
+
+The settings activity is available from the app launcher or via notification pending intents.
+Configure:
+
+| Setting | What it does |
+| ------- | ------------ |
+| Enable dashboard | Turn the dashboard off without disabling the screen saver |
+| 24-hour clock | 12-hour vs 24-hour time format |
+| Show seconds | Display seconds (uses more power) |
+| Auto-dim | Dim after 30 min idle, near-black after 2 h |
+| Dim level | Never / Medium / Aggressive dimming |
+| Media controls | Control Spotify, YouTube and other media sessions |
+| Backend URL | Where prices are fetched from (required for prices) |
+| Bearer token | Auth token for the backend |
+| ntfy server / topic / token | CLI notification bridge config |
+| Stock tickers | Comma-separated watchlist (default: AAPL,MSFT,GOOGL,AMZN,NVDA,XAUUSD) |
+
+### 4. Deploy the backend (for prices)
+
+```powershell
+cd backend
+$env:PIXEL_BEARER_TOKEN = "<generate with: python -c "import secrets; print(secrets.token_urlsafe(32))">"
+python -m uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000
+```
+
+Then enter the URL and bearer token in the app settings.
+
+### 5. Configure the CLI bridge (for ntfy banners)
+
+```powershell
+cd cli-bridge
+$env:NTFY_TOPIC = "your-topic"
+python notify_run.py --title "opencode" -- sleep 5
+```
+
+Enter the ntfy server/topic/token in the app settings. Banners appear for 15 seconds, then
+move to a history strip (last 20 kept).
+
+---
+
+## Build
 
 ```powershell
 $env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-17.0.20.101-hotspot"
-.\gradlew.bat assembleDebug          # -> app\build\outputs\apk\debug\app-debug.apk
-.\gradlew.bat testDebugUnitTest      # 33 unit tests
-.\gradlew.bat lintDebug
+cd android-app
+.\gradlew.bat testDebugUnitTest   # 34 unit tests
+.\gradlew.bat assembleDebug      # debug APK
+.\gradlew.bat assembleRelease    # minified APK
 ```
 
-The SDK location comes from `android-app/local.properties` (`sdk.dir`), which is
-machine-specific and gitignored.
-
-### Install and enable
-
-1. `adb install -r app\build\outputs\apk\debug\app-debug.apk`
-2. On the phone: **Settings → Display → Screen saver → Pixel Standby**
-3. **Settings → Display → Screen saver → Start screen saver → While charging**
-4. Plug in and rotate to landscape.
-
-To preview the dream without waiting for the trigger:
+Backend tests:
 
 ```powershell
-adb shell am start -n com.pixelstandby/.StandbyDreamService
+cd backend
+.\.venv\Scripts\python.exe -m pytest   # 102 tests
 ```
 
-Full walkthrough in [docs/device-setup.md](docs/device-setup.md).
+## Acceptance criteria
 
-### Behaviour
-
-**Power gate.** `ACTION_BATTERY_CHANGED` with `EXTRA_PLUGGED`. Because that broadcast is
-sticky it is read synchronously at attach, so there is no flash of the wrong screen and no
-guesswork. `ACTION_POWER_CONNECTED` / `DISCONNECTED` keep it live. While unplugged the
-dashboard is not drawn at all — just "Connect to power to activate".
-
-**Orientation gate.** Dream services cannot reliably lock orientation, so the dashboard
-adapts instead. Orientation comes from the process-wide `ComponentCallbacks2` rather than
-from a service callback, which means it fires whether the phone rotates or the dream is
-started in the new orientation. Portrait shows "Rotate to landscape".
-
-**Burn-in protection.**
-
-- Every 60 seconds the entire dashboard shifts to the next position on a small ring,
-  8dp out from centre in each direction. The walk steps one position at a time so content
-  always moves, and every so often it jumps across the ring rather than turning back, so the
-  motion never degenerates into a ping-pong that would trace a visible line. Counter is
-  aligned to the wall-clock minute so the shift does not drift.
-- After 30 minutes without interaction the content fades to 45% alpha.
-- After 2 hours it drops to 6%.
-- Interaction resets the timer.
-
-**Brightness.** `setScreenBright(false)` knocks the panel down, and the dimming above
-fades content on top of that rather than only the panel, so the clock stays readable
-across a dark room instead of going straight to black.
-
-**CPU.** Every time-driven loop is a cold `Flow` collected inside the composition, so it
-starts when the dream draws and is cancelled when the window detaches — there is no
-service-lifetime scope that could leak. The clock aligns to the next second or minute
-boundary instead of firing on a fixed interval, so with seconds hidden the dashboard wakes
-once a minute rather than sixty times, and it never drifts.
-
-### Known limitation: tap-to-brighten
-
-The spec for this phase asks for both `setInteractive(false)` and "brighten on tap". On
-Android these conflict: a non-interactive dream never receives touch events, because the
-system consumes them to wake the device. So `detectTapGestures` in `StandbyScreen` is wired
-up and ready, but in the default configuration it does not fire.
-
-What does work today is `onWakeUp()`, which resets the idle timer when the system wakes the
-dream, so the screen recovers whenever the phone is touched. If tap-to-brighten needs to
-respond while the dream stays up, `setInteractive(true)` is the switch — it is a one-line
-change and it is intentionally left off here because it also stops the screen blanking,
-which is a behaviour decision rather than a technical one. It is flagged for the Phase 5
-settings screen.
-
-This is also why the 30-minute and 2-hour fades apply unconditionally: on a non-interactive
-dream there is no reliable per-keystroke signal to reset them.
-
-### Settings
-
-Stored in DataStore (`standby_settings`), consumed by the dream and written by the Phase 5
-settings screen:
-
-| Key                     | Default | Effect                                  |
-| ----------------------- | ------- | --------------------------------------- |
-| `clock_24_hour`         | `false` | 24 hour vs 12 hour clock                |
-| `clock_show_seconds`    | `false` | Hide seconds; also cuts wakeups to 1/min |
-| `auto_dim_enabled`      | `true`  | Master switch for the 30 min / 2 h fade |
-
-Defaulting to 12 hour with no seconds is the "calm bedside clock" choice; both are
-one tap away in Phase 5.
-
----
-
-## Hardware setup (Pixel 6 Pro)
-
-See [docs/device-setup.md](docs/device-setup.md).
+- [ ] Plugged in + landscape: clock, prices, active media visible. Prices refresh within 60s.
+- [ ] Unplugged: "Connect to power" screen.
+- [ ] Portrait: "Rotate" hint.
+- [ ] Media controls work with Spotify and YouTube; card updates within 1s of track change.
+- [ ] `notify-run -- sleep 5` → phone banner within 5s.
+- [ ] Backend down → stale prices with timestamps, no crash.
+- [ ] No secrets in the APK.
 
 ## Documentation map
 
 - `plan.md` — phase plan, acceptance criteria, decisions
 - `progress.md` — running log of what is done, tested, and blocked
 - `docs/device-setup.md` — Pixel setup and per-phase device checklist
-- `docs/api-contract.md` — backend endpoints and payloads (Phase 2)
+- `docs/api-contract.md` — backend endpoints and payloads

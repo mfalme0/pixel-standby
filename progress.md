@@ -151,8 +151,34 @@ Settings screen to enter ntfy topic/server/token still needs to be built (Phase 
 
 ### Phase 5 — Hardening
 
-- Status: not started
-- Checkpoint 5: not reached
+- Status: **built, unit tested (34 tests), debug APK builds**
+- Checkpoint 5: **not reached** — needs overnight soak test on device
+
+Delivered:
+
+| File | Purpose |
+| --- | --- |
+| `settings/SettingsActivity.kt` | Launcher activity for all settings |
+| `ui/SettingsScreen.kt` | Compose settings UI (dashboard toggle, 12/24h, seconds, dim level, media, backend, ntfy, watchlist) |
+| `data/NetworkMonitor.kt` | Connectivity polling with StateFlow |
+| `data/SettingsRepository.kt` | Added ntfy_server, ntfy_topic, ntfy_token, dim_level settings |
+| `dream/DimPolicy.kt` | DimLevelSetting enum (NONE/MEDIUM/AGGRESSIVE) |
+| `ui/StandbyScreen.kt` | ConnectionIndicator (green/red dot) in dream UI |
+| `StandbyDreamService.kt` | Integrates NetworkMonitor, starts/stops NtfySubscriberService |
+
+Key design:
+- Dim level: NONE = never dim, MEDIUM = 30min/2h (default), AGGRESSIVE = 10min/30min
+- Connection indicator: green dot = online, red dot with "!" = offline
+- Settings screen accessible from app launcher or notification pending intent
+- All settings persisted in DataStore, survive process death
+- Stale fallback: when backend is unreachable, last known prices shown with stale=true
+- Exponential backoff reconnect for ntfy SSE (1s → 60s cap)
+
+Needs device testing:
+- Overnight charging soak (battery drain, temperature, dropped updates)
+- Airplane mode / Wi-Fi toggle without crashing
+- Settings screen accessible and functional
+- 12/24h toggle and dim level actually change behavior
 
 ## Environment
 
