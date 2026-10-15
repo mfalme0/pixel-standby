@@ -46,6 +46,11 @@
         </service>
 
         <activity
+            android:name=".settings.SettingsActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <activity
             android:name=".ntfy.StubActivity"
             android:exported="false"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />

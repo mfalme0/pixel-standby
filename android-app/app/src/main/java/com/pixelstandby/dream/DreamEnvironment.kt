@@ -105,8 +105,9 @@ class DreamEnvironment(
 
     fun dimLevels(
         enabled: () -> Boolean = { true },
+        setting: () -> DimLevelSetting = { DimLevelSetting.MEDIUM },
         tickMillis: Long = DimPolicy.DEFAULT_TICK_MILLIS,
-    ): Flow<DimLevel> = DimPolicy.levels(idleMillis = ::idleMillis, enabled = enabled, tickMillis = tickMillis)
+    ): Flow<DimLevel> = DimPolicy.levels(idleMillis = ::idleMillis, enabled = enabled, setting = setting, tickMillis = tickMillis)
 }
 
 data class DreamState(

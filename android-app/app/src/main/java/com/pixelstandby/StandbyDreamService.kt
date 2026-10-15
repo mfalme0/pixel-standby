@@ -12,10 +12,12 @@ import com.pixelstandby.data.QuotesClient
 import com.pixelstandby.data.QuotesRepository
 import com.pixelstandby.data.SettingsRepository
 import com.pixelstandby.data.WatchlistRepository
+import com.pixelstandby.data.NetworkMonitor
 import com.pixelstandby.dream.BurnInShift
 import com.pixelstandby.dream.ClockFormatter
 import com.pixelstandby.dream.ClockTicker
 import com.pixelstandby.dream.DimLevel
+import com.pixelstandby.dream.DimLevelSetting
 import com.pixelstandby.dream.DreamEnvironment
 import com.pixelstandby.dream.PixelOffset
 import com.pixelstandby.media.MediaNotificationListener
@@ -56,6 +58,7 @@ class StandbyDreamService : DreamService() {
     private var environment: DreamEnvironment? = null
     private var contentView: ComposeView? = null
     private var dreamJob: Job? = null
+    private var networkMonitor: NetworkMonitor? = null
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
@@ -96,6 +99,12 @@ class StandbyDreamService : DreamService() {
             val ntfyServer by settings.ntfyServer.collectAsState(initial = "https://ntfy.sh")
             val ntfyTopic by settings.ntfyTopic.collectAsState(initial = "")
             val ntfyToken by settings.ntfyToken.collectAsState(initial = "")
+            val dimLevelSettingStr by settings.dimLevel.collectAsState(initial = "medium")
+            val dimLevelSetting = DimLevelSetting.valueOf(dimLevelSettingStr)
+
+            val networkMonitorInstance = remember { NetworkMonitor(this@StandbyDreamService) }
+            networkMonitor = networkMonitorInstance
+            val connected by networkMonitorInstance.connected.collectAsState(initial = false)
 
             val quotesClient = remember(backendUrl, bearerToken) {
                 QuotesClient(baseUrl = backendUrl, bearerToken = bearerToken)
@@ -111,8 +120,11 @@ class StandbyDreamService : DreamService() {
                 ).ticks(showSeconds)
             }.collectAsState(initial = ZonedDateTime.now())
 
-            val dimLevel by remember(autoDim) {
-                env.dimLevels(enabled = { autoDim })
+            val dimLevel by remember(autoDim, dimLevelSetting) {
+                env.dimLevels(
+                    enabled = { autoDim },
+                    setting = { dimLevelSetting },
+                )
             }.collectAsState(initial = DimLevel.BRIGHT)
 
             val burnCycle by remember { burnInCycles() }.collectAsState(initial = 0)
@@ -139,6 +151,7 @@ class StandbyDreamService : DreamService() {
 
             // Start the quote refresh loop tied to the dream's lifecycle.
             LaunchedEffect(Unit) {
+                networkMonitor?.start()
                 quotesRepository.startRefresh()
                 // Only start media discovery if notification access is granted.
                 if (mediaEnabled && notificationAccess) {
@@ -169,6 +182,7 @@ class StandbyDreamService : DreamService() {
                     quotes = if (dashboardOn) quotes else emptyList(),
                     media = if (mediaEnabled && notificationAccess) activeMedia else null,
                     banners = banners,
+                    connected = connected,
                     onPlayPause = { activeMedia?.transportControls?.play() },
                     onNext = { activeMedia?.transportControls?.skipToNext() },
                     onPrevious = { activeMedia?.transportControls?.skipToPrevious() },
@@ -181,6 +195,9 @@ class StandbyDreamService : DreamService() {
     override fun onDetachedFromWindow() {
         dreamJob?.cancel()
         dreamJob = null
+        networkMonitor?.stop()
+        networkMonitor = null
+        NtfySubscriberService.stop(this)
         environment?.stop()
         environment = null
         contentView = null

@@ -13,37 +13,52 @@ import org.junit.Test
 class DimPolicyTest {
 
     @Test
-    fun `bright before thirty minutes`() {
-        assertEquals(DimLevel.BRIGHT, DimPolicy.levelFor(0))
-        assertEquals(DimLevel.BRIGHT, DimPolicy.levelFor(DimPolicy.DIM_AFTER_MILLIS - 1))
-    }
-
-    @Test
-    fun `dimmed at thirty minutes`() {
-        assertEquals(DimLevel.DIMMED, DimPolicy.levelFor(DimPolicy.DIM_AFTER_MILLIS))
+    fun `bright before thirty minutes (medium)`() {
+        assertEquals(DimLevel.BRIGHT, DimPolicy.levelFor(0, setting = DimLevelSetting.MEDIUM))
         assertEquals(
-            DimLevel.DIMMED,
-            DimPolicy.levelFor(DimPolicy.NEAR_BLACK_AFTER_MILLIS - 1),
+            DimLevel.BRIGHT,
+            DimPolicy.levelFor(30L * 60L * 1000L - 1, setting = DimLevelSetting.MEDIUM),
         )
     }
 
     @Test
-    fun `near black at two hours`() {
-        assertEquals(DimLevel.NEAR_BLACK, DimPolicy.levelFor(DimPolicy.NEAR_BLACK_AFTER_MILLIS))
-        assertEquals(DimLevel.NEAR_BLACK, DimPolicy.levelFor(DimPolicy.NEAR_BLACK_AFTER_MILLIS + 1))
+    fun `dimmed at thirty minutes (medium)`() {
+        assertEquals(DimLevel.DIMMED, DimPolicy.levelFor(30L * 60L * 1000L, setting = DimLevelSetting.MEDIUM))
+        assertEquals(
+            DimLevel.DIMMED,
+            DimPolicy.levelFor(2L * 60L * 60L * 1000L - 1, setting = DimLevelSetting.MEDIUM),
+        )
     }
 
     @Test
-    fun `thresholds are the documented values`() {
-        assertEquals(30L * 60L * 1000L, DimPolicy.DIM_AFTER_MILLIS)
-        assertEquals(2L * 60L * 60L * 1000L, DimPolicy.NEAR_BLACK_AFTER_MILLIS)
+    fun `near black at two hours (medium)`() {
+        assertEquals(DimLevel.NEAR_BLACK, DimPolicy.levelFor(2L * 60L * 60L * 1000L, setting = DimLevelSetting.MEDIUM))
+        assertEquals(
+            DimLevel.NEAR_BLACK,
+            DimPolicy.levelFor(2L * 60L * 60L * 1000L + 1, setting = DimLevelSetting.MEDIUM),
+        )
+    }
+
+    @Test
+    fun `aggressive dims at ten minutes`() {
+        assertEquals(DimLevel.DIMMED, DimPolicy.levelFor(10L * 60L * 1000L, setting = DimLevelSetting.AGGRESSIVE))
+        assertEquals(
+            DimLevel.NEAR_BLACK,
+            DimPolicy.levelFor(30L * 60L * 1000L, setting = DimLevelSetting.AGGRESSIVE),
+        )
+    }
+
+    @Test
+    fun `none never dims`() {
+        assertEquals(DimLevel.BRIGHT, DimPolicy.levelFor(2L * 60L * 60L * 1000L * 10, setting = DimLevelSetting.NONE))
+        assertEquals(DimLevel.BRIGHT, DimPolicy.levelFor(Long.MAX_VALUE, setting = DimLevelSetting.NONE))
     }
 
     @Test
     fun `disabled stays bright forever`() {
         assertEquals(
             DimLevel.BRIGHT,
-            DimPolicy.levelFor(DimPolicy.NEAR_BLACK_AFTER_MILLIS * 10, enabled = false),
+            DimPolicy.levelFor(2L * 60L * 60L * 1000L * 10, enabled = false),
         )
     }
 
@@ -78,12 +93,12 @@ class DimPolicyFlowTest {
         runCurrent()
         assertEquals(listOf(DimLevel.BRIGHT), levels)
 
-        idle = DimPolicy.DIM_AFTER_MILLIS
+        idle = 30L * 60L * 1000L
         advanceTimeBy(1_000L)
         runCurrent()
         assertEquals(listOf(DimLevel.BRIGHT, DimLevel.DIMMED), levels)
 
-        idle = DimPolicy.NEAR_BLACK_AFTER_MILLIS
+        idle = 2L * 60L * 60L * 1000L
         advanceTimeBy(1_000L)
         runCurrent()
         assertEquals(DimLevel.NEAR_BLACK, levels.last())
@@ -101,7 +116,7 @@ class DimPolicyFlowTest {
         }
 
         runCurrent()
-        idle = DimPolicy.NEAR_BLACK_AFTER_MILLIS
+        idle = 2L * 60L * 60L * 1000L
         advanceTimeBy(4_000L)
         runCurrent()
         assertEquals(1, levels.size)

@@ -21,6 +21,7 @@ private const val MediaEnabledKey = "media_enabled"
 private const val NtfyServerKey = "ntfy_server"
 private const val NtfyTopicKey = "ntfy_topic"
 private const val NtfyTokenKey = "ntfy_token"
+private const val DimLevelKey = "dim_level"
 
 /**
  * User settings. Defaults are the "calm bedside clock" defaults: 12 hour, no seconds.
@@ -62,6 +63,9 @@ class SettingsRepository(context: Context) {
     val ntfyToken: Flow<String> =
         preferences.map { it[stringPreferencesKey(NtfyTokenKey)] ?: "" }
 
+    val dimLevel: Flow<String> =
+        preferences.map { it[stringPreferencesKey(DimLevelKey)] ?: "medium" }
+
     suspend fun setMediaEnabled(value: Boolean) = store.edit { it[booleanPreferencesKey(MediaEnabledKey)] = value }
 
     suspend fun setNtfyServer(value: String) = store.edit { it[stringPreferencesKey(NtfyServerKey)] = value }
@@ -69,6 +73,8 @@ class SettingsRepository(context: Context) {
     suspend fun setNtfyTopic(value: String) = store.edit { it[stringPreferencesKey(NtfyTopicKey)] = value }
 
     suspend fun setNtfyToken(value: String) = store.edit { it[stringPreferencesKey(NtfyTokenKey)] = value }
+
+    suspend fun setDimLevel(value: String) = store.edit { it[stringPreferencesKey(DimLevelKey)] = value }
 
     suspend fun setClock24Hour(value: Boolean) = store.edit { it[booleanPreferencesKey("clock_24_hour")] = value }
 

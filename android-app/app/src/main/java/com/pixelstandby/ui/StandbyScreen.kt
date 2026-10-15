@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -34,6 +36,25 @@ import com.pixelstandby.ntfy.NtfyBanner
 
 private val BannerBackground = Color(0xFF1A1A1A)
 private val BannerBorder = Color(0xFF333333)
+private val ConnectionOnline = Color(0xFF4CAF50)
+private val ConnectionOffline = Color(0xFFF44336)
+
+/**
+ * A small connection indicator dot shown in the top-right corner.
+ */
+@Composable
+private fun ConnectionIndicator(connected: Boolean) {
+    Box(
+        modifier = Modifier
+            .size(12.dp)
+            .background(if (connected) ConnectionOnline else ConnectionOffline),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (!connected) {
+            Text(text = "!", color = Color(0xFFFFFFFF), fontSize = 8.sp)
+        }
+    }
+}
 
 /**
  * The whole dream, in one place.
@@ -54,6 +75,7 @@ fun StandbyDream(
     quotes: List<Quote>,
     media: MediaSessionInfo?,
     banners: List<NtfyBanner>,
+    connected: Boolean,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
@@ -108,6 +130,7 @@ fun StandbyDream(
                         }
                         dashboard()
                     }
+                    ConnectionIndicator(connected = connected)
                 }
             }
         }
@@ -160,6 +183,7 @@ private fun StandbyDreamPreview() {
             quotes = emptyList(),
             media = null,
             banners = emptyList(),
+            connected = true,
             onPlayPause = {},
             onNext = {},
             onPrevious = {},
@@ -182,6 +206,7 @@ private fun StandbyDreamUnpluggedPreview() {
             quotes = emptyList(),
             media = null,
             banners = emptyList(),
+            connected = true,
             onPlayPause = {},
             onNext = {},
             onPrevious = {},
@@ -223,6 +248,7 @@ private fun StandbyDreamBannerPreview() {
             onNext = {},
             onPrevious = {},
             onInteraction = {},
+            connected = true,
         )
     }
 }
